@@ -426,10 +426,15 @@
         const dr = word.direction === 'down' ? 1 : 0;
         const dc = word.direction === 'across' ? 1 : 0;
         
-        console.log(`🖌 Highlighting word: "${word.word}" starting at [${word.start_row}, ${word.start_col}]`);
-        for(let i=0; i < word.word.length; i++) {
-            const targetR = word.start_row + i*dr;
-            const targetC = word.start_col + i*dc;
+        // Use 'answer' property instead of 'word', and 'row'/'col' instead of 'start_row'/'start_col'
+        const wordLength = word.answer.length;
+        const startRow = word.row;
+        const startCol = word.col;
+        
+        console.log(`🖌 Highlighting word: "${word.answer}" starting at [${startRow}, ${startCol}]`);
+        for(let i = 0; i < wordLength; i++) {
+            const targetR = startRow + i * dr;
+            const targetC = startCol + i * dc;
             const cell = document.querySelector(`.cell[data-row="${targetR}"][data-col="${targetC}"]`);
             if (cell) cell.classList.add('highlighted');
         }
@@ -460,10 +465,17 @@
         }
         return currentPuzzle.words.find(w => {
             if (w.direction !== dir) return false;
+            // Use 'answer' property instead of 'word', and 'row'/'col' instead of 'start_row'/'start_col'
+            const wordLength = w.answer ? w.answer.length : 0;
+            if (wordLength === 0) return false;
+            
             const dr = dir === 'down' ? 1 : 0;
             const dc = dir === 'across' ? 1 : 0;
-            for(let i=0; i < w.word.length; i++) {
-                if (w.start_row + i*dr === r && w.start_col + i*dc === c) return true;
+            const startRow = w.row;
+            const startCol = w.col;
+            
+            for(let i = 0; i < wordLength; i++) {
+                if (startRow + i * dr === r && startCol + i * dc === c) return true;
             }
             return false;
         });
@@ -530,11 +542,12 @@
             item.onclick = () => {
                 console.log(`🖱 Clue clicked: ${w.number} ${w.direction}`);
                 currentDirection = w.direction;
-                const input = document.querySelector(`.cell-input[data-row="${w.start_row}"][data-col="${w.start_col}"]`);
+                // Use 'row'/'col' instead of 'start_row'/'start_col'
+                const input = document.querySelector(`.cell-input[data-row="${w.row}"][data-col="${w.col}"]`);
                 if(input) {
                     input.focus();
                     input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    updateHighlights(w.start_row, w.start_col);
+                    updateHighlights(w.row, w.col);
                 }
             };
             (w.direction === 'across' ? across : down).appendChild(item);
