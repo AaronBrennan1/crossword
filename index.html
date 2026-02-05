@@ -287,244 +287,230 @@
 
     <script>
         let currentPuzzle = null;
-        let currentDirection = 'across';
-        let puzzlesData = [];
-        let cellInputs = [];
-        let lastFocusedCell = null;
+    let currentDirection = 'across';
+    let puzzlesData = [];
+    let cellInputs = [];
 
-        async function init() {
-            try {
-                const res = await fetch('chem_crosswords_fixed.json');
-                puzzlesData = await res.json();
-                const grid = document.getElementById('puzzleGrid');
-                puzzlesData.forEach(p => {
-                    const btn = document.createElement('button');
-                    btn.className = 'puzzle-btn';
-                    btn.innerText = p.puzzle_id;
-                    btn.onclick = () => startPuzzle(p.puzzle_id);
-                    grid.appendChild(btn);
-                });
-            } catch (e) { console.error("Data load failed"); }
-        }
-
-        function startPuzzle(id) {
-            currentPuzzle = puzzlesData.find(p => p.puzzle_id === id);
-            document.getElementById('puzzleSelector').style.display = 'none';
-            document.getElementById('mainHeader').style.display = 'none';
-            document.getElementById('crosswordView').classList.add('active');
-            renderGrid();
-            renderReferenceClues();
-        }
-
-        function renderGrid() {
-            const gridEl = document.getElementById('crosswordGrid');
-            const { grid, number_grid, rows, cols } = currentPuzzle;
-            gridEl.style.gridTemplateColumns = `repeat(${cols}, var(--cell-size))`;
-            
-            let html = '';
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    const val = grid[r][c];
-                    const num = number_grid[r][c];
-                    if (val === null) {
-                        html += '<div class="cell null"></div>';
-                    } else {
-                        html += `
-                        <div class="cell" data-row="${r}" data-col="${c}" onclick="handleCellClick(this)">
-                            ${num ? `<span class="cell-number">${num}</span>` : ''}
-                            <input type="text" class="cell-input" maxlength="1" 
-                                data-row="${r}" data-col="${c}" data-answer="${val}"
-                                oninput="handleInput(this)" 
-                                onkeydown="handleKeydown(event, this)"
-                                onfocus="handleFocus(this)">
-                        </div>`;
-                    }
-                }
-            }
-            gridEl.innerHTML = html;
-            cellInputs = Array.from(document.querySelectorAll('.cell-input'));
-        }
-
-        // Logic to toggle direction if clicking same cell, or pick only valid direction
-        function handleCellClick(cellDiv) {
-            const input = cellDiv.querySelector('input');
-            const r = parseInt(input.dataset.row);
-            const c = parseInt(input.dataset.col);
-
-            const hasAcross = !!findWordAt(r, c, 'across');
-            const hasDown = !!findWordAt(r, c, 'down');
-
-            if (lastFocusedCell === input) {
-                // Toggle if both exist
-                if (hasAcross && hasDown) {
-                    currentDirection = (currentDirection === 'across') ? 'down' : 'across';
-                }
-            } else {
-                // New cell selected: switch to available direction if only one exists
-                if (hasAcross && !hasDown) currentDirection = 'across';
-                else if (!hasAcross && hasDown) currentDirection = 'down';
-                // Otherwise, keep current direction
-            }
-            
-            input.focus();
-            updateUI(input);
-        }
-
-        function handleFocus(input) {
-            updateUI(input);
-            lastFocusedCell = input;
-        }
-
-        function updateUI(input) {
-            const r = parseInt(input.dataset.row);
-            const c = parseInt(input.dataset.col);
-            
-            document.querySelectorAll('.cell').forEach(el => el.classList.remove('highlighted', 'active-cell'));
-            input.parentElement.classList.add('active-cell');
-
-            let word = findWordAt(r, c, currentDirection);
-            
-            // If direction is invalid for this cell, try to switch
-            if (!word) {
-                currentDirection = (currentDirection === 'across') ? 'down' : 'across';
-                word = findWordAt(r, c, currentDirection);
-            }
-
-            if (word) {
-                document.getElementById('clueLabel').innerText = `${word.number} ${word.direction.toUpperCase()}`;
-                document.getElementById('clueText').innerText = word.clue;
-
-                const dr = currentDirection === 'down' ? 1 : 0;
-                const dc = currentDirection === 'across' ? 1 : 0;
-                for(let i=0; i < word.word.length; i++) {
-                    const cell = document.querySelector(`.cell[data-row="${word.start_row + i*dr}"][data-col="${word.start_col + i*dc}"]`);
-                    if (cell) cell.classList.add('highlighted');
-                }
-            }
-        }
-
-        function toggleDirection() {
-            currentDirection = currentDirection === 'across' ? 'down' : 'across';
-            if (lastFocusedCell) updateUI(lastFocusedCell);
-        }
-
-        function findWordAt(r, c, dir) {
-            return currentPuzzle.words.find(w => {
-                if (w.direction !== dir) return false;
-                const dr = dir === 'down' ? 1 : 0;
-                const dc = dir === 'across' ? 1 : 0;
-                for(let i=0; i<w.word.length; i++) {
-                    if (w.start_row + i*dr === r && w.start_col + i*dc === c) return true;
-                }
-                return false;
+    async function init() {
+        try {
+            const res = await fetch('chem_crosswords_fixed.json');
+            puzzlesData = await res.json();
+            const grid = document.getElementById('puzzleGrid');
+            puzzlesData.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = 'puzzle-btn';
+                btn.innerText = p.puzzle_id;
+                btn.onclick = () => startPuzzle(p.puzzle_id);
+                grid.appendChild(btn);
             });
-        }
+        } catch (e) { console.error("Data load failed"); }
+    }
 
-        function handleInput(input) {
-            input.value = input.value.toUpperCase();
-            input.classList.remove('incorrect');
-            
-            if (input.value) {
-                moveFocus(input, 1);
-            }
-        }
+    function startPuzzle(id) {
+        currentPuzzle = puzzlesData.find(p => p.puzzle_id === id);
+        document.getElementById('puzzleSelector').style.display = 'none';
+        document.getElementById('mainHeader').style.display = 'none';
+        document.getElementById('crosswordView').classList.add('active');
+        renderGrid();
+        renderReferenceClues();
+    }
 
-        function handleKeydown(e, input) {
-            const r = parseInt(input.dataset.row);
-            const c = parseInt(input.dataset.col);
-
-            if (e.key === 'Backspace') {
-                if (!input.value) {
-                    e.preventDefault();
-                    moveFocus(input, -1);
-                    const current = document.activeElement;
-                    if (current) current.value = '';
+    function renderGrid() {
+        const gridEl = document.getElementById('crosswordGrid');
+        const { grid, number_grid, rows, cols } = currentPuzzle;
+        gridEl.style.gridTemplateColumns = `repeat(${cols}, var(--cell-size))`;
+        
+        let html = '';
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const val = grid[r][c];
+                const num = number_grid[r][c];
+                if (val === null) {
+                    html += '<div class="cell null"></div>';
+                } else {
+                    html += `
+                    <div class="cell" data-row="${r}" data-col="${c}" onclick="handleCellClick(this)">
+                        ${num ? `<span class="cell-number">${num}</span>` : ''}
+                        <input type="text" class="cell-input" maxlength="1" 
+                            data-row="${r}" data-col="${c}" data-answer="${val}"
+                            oninput="handleInput(this)" 
+                            onkeydown="handleKeydown(event, this)"
+                            onfocus="handleFocus(this)">
+                    </div>`;
                 }
-            } else if (e.key === 'ArrowRight') {
-                moveFocusByOffset(r, c, 0, 1);
-            } else if (e.key === 'ArrowLeft') {
-                moveFocusByOffset(r, c, 0, -1);
-            } else if (e.key === 'ArrowUp') {
-                moveFocusByOffset(r, c, -1, 0);
-            } else if (e.key === 'ArrowDown') {
-                moveFocusByOffset(r, c, 1, 0);
             }
         }
+        gridEl.innerHTML = html;
+        cellInputs = Array.from(document.querySelectorAll('.cell-input'));
+    }
 
-        function moveFocus(input, delta) {
+    // New: Handles clicking the cell container to toggle direction
+    function handleCellClick(cellDiv) {
+        const input = cellDiv.querySelector('input');
+        if (document.activeElement === input) {
+            toggleDirection();
+        } else {
+            input.focus();
+        }
+    }
+
+    function handleFocus(input) {
+        const r = parseInt(input.dataset.row);
+        const c = parseInt(input.dataset.col);
+        
+        // 1. Try to find word in current direction
+        let word = findWordAt(r, c, currentDirection);
+        
+        // 2. SMART DIRECTION: If not found, try the other direction
+        if (!word) {
+            const otherDir = currentDirection === 'across' ? 'down' : 'across';
+            word = findWordAt(r, c, otherDir);
+            if (word) currentDirection = otherDir;
+        }
+
+        // 3. If still no word (shouldn't happen on a white cell), exit
+        if (!word) return;
+
+        // UI Updates
+        document.querySelectorAll('.cell').forEach(el => el.classList.remove('highlighted', 'active-cell'));
+        input.parentElement.classList.add('active-cell');
+
+        document.getElementById('clueLabel').innerText = `${word.number} ${word.direction.toUpperCase()}`;
+        document.getElementById('clueText').innerText = word.clue;
+
+        const dr = currentDirection === 'down' ? 1 : 0;
+        const dc = currentDirection === 'across' ? 1 : 0;
+        
+        for(let i=0; i < word.word.length; i++) {
+            const targetR = word.start_row + i*dr;
+            const targetC = word.start_col + i*dc;
+            const cell = document.querySelector(`.cell[data-row="${targetR}"][data-col="${targetC}"]`);
+            if (cell) cell.classList.add('highlighted');
+        }
+    }
+
+    function toggleDirection() {
+        currentDirection = currentDirection === 'across' ? 'down' : 'across';
+        const active = document.activeElement;
+        if (active && active.classList.contains('cell-input')) {
+            handleFocus(active);
+        }
+    }
+
+    function findWordAt(r, c, dir) {
+        return currentPuzzle.words.find(w => {
+            if (w.direction !== dir) return false;
+            const dr = dir === 'down' ? 1 : 0;
+            const dc = dir === 'across' ? 1 : 0;
+            for(let i=0; i<w.word.length; i++) {
+                if (w.start_row + i*dr === r && w.start_col + i*dc === c) return true;
+            }
+            return false;
+        });
+    }
+
+    function handleInput(input) {
+        input.value = input.value.toUpperCase();
+        input.classList.remove('incorrect');
+        
+        if (input.value) {
+            moveFocus(input, 1);
+        }
+    }
+
+    function handleKeydown(e, input) {
+        if (e.key === 'Backspace' && !input.value) {
+            e.preventDefault();
+            moveFocus(input, -1);
+        } else if (e.key.startsWith('Arrow')) {
+            // Enhanced Navigation with Arrows
+            e.preventDefault();
             const r = parseInt(input.dataset.row);
             const c = parseInt(input.dataset.col);
-            const nextR = currentDirection === 'down' ? r + delta : r;
-            const nextC = currentDirection === 'across' ? c + delta : c;
-            const next = document.querySelector(`.cell-input[data-row="${nextR}"][data-col="${nextC}"]`);
+            let nr = r, nc = c;
+            if (e.key === 'ArrowUp') nr--;
+            if (e.key === 'ArrowDown') nr++;
+            if (e.key === 'ArrowLeft') nc--;
+            if (e.key === 'ArrowRight') nc++;
+            const next = document.querySelector(`.cell-input[data-row="${nr}"][data-col="${nc}"]`);
             if (next) next.focus();
         }
+    }
 
-        function moveFocusByOffset(r, c, dr, dc) {
-            const next = document.querySelector(`.cell-input[data-row="${r + dr}"][data-col="${c + dc}"]`);
-            if (next) next.focus();
+    function moveFocus(input, step) {
+        const r = parseInt(input.dataset.row);
+        const c = parseInt(input.dataset.col);
+        const nextR = currentDirection === 'down' ? r + step : r;
+        const nextC = currentDirection === 'across' ? c + step : c;
+        const next = document.querySelector(`.cell-input[data-row="${nextR}"][data-col="${nextC}"]`);
+        if (next) {
+            next.focus();
         }
+    }
 
-        function renderReferenceClues() {
-            const across = document.getElementById('acrossRef');
-            const down = document.getElementById('downRef');
-            across.innerHTML = '<strong>Across</strong>';
-            down.innerHTML = '<br><strong>Down</strong>';
-            
-            currentPuzzle.words.forEach(w => {
-                const item = document.createElement('div');
-                item.className = 'clue-list-item';
-                item.style.cursor = 'pointer';
-                item.style.padding = '4px 0';
-                item.innerHTML = `<b>${w.number}.</b> ${w.clue}`;
-                item.onclick = () => {
-                    currentDirection = w.direction;
-                    const input = document.querySelector(`.cell-input[data-row="${w.start_row}"][data-col="${w.start_col}"]`);
+    function renderReferenceClues() {
+        const across = document.getElementById('acrossRef');
+        const down = document.getElementById('downRef');
+        across.innerHTML = '<strong>Across</strong>';
+        down.innerHTML = '<br><strong>Down</strong>';
+        
+        currentPuzzle.words.forEach(w => {
+            const item = document.createElement('div');
+            item.className = 'clue-list-item';
+            item.style.cursor = 'pointer';
+            item.style.padding = '4px 0';
+            item.innerHTML = `<b>${w.number}.</b> ${w.clue}`;
+            item.onclick = () => {
+                currentDirection = w.direction;
+                const input = document.querySelector(`.cell-input[data-row="${w.start_row}"][data-col="${w.start_col}"]`);
+                if(input) {
                     input.focus();
                     input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                };
-                (w.direction === 'across' ? across : down).appendChild(item);
-            });
-        }
+                }
+            };
+            (w.direction === 'across' ? across : down).appendChild(item);
+        });
+    }
 
-        function checkAnswers() {
-            let win = true;
+    function checkAnswers() {
+        let win = true;
+        cellInputs.forEach(input => {
+            input.classList.remove('incorrect', 'correct');
+            if (input.value === input.dataset.answer) {
+                input.classList.add('correct');
+            } else if (input.value !== '') {
+                input.classList.add('incorrect');
+                win = false;
+            } else { win = false; }
+        });
+        if (win) document.getElementById('successOverlay').style.display = 'flex';
+    }
+
+    function revealSolution() {
+        if(confirm("Show the full solution?")) {
             cellInputs.forEach(input => {
-                input.classList.remove('correct', 'incorrect');
-                if (input.value === input.dataset.answer) {
-                    input.classList.add('correct');
-                } else if (input.value !== '') {
-                    input.classList.add('incorrect');
-                    win = false;
-                } else { win = false; }
+                input.value = input.dataset.answer;
+                input.classList.add('correct');
+                input.classList.remove('incorrect');
             });
-            if (win) document.getElementById('successOverlay').style.display = 'flex';
         }
+    }
 
-        function revealSolution() {
-            if(confirm("Show the full solution?")) {
-                cellInputs.forEach(input => {
-                    input.value = input.dataset.answer;
-                    input.classList.add('correct');
-                    input.classList.remove('incorrect');
-                });
-            }
+    function clearPuzzle() {
+        if(confirm("Clear everything?")) {
+            cellInputs.forEach(i => {
+                i.value = '';
+                i.classList.remove('correct', 'incorrect');
+            });
         }
+    }
 
-        function clearPuzzle() {
-            if(confirm("Clear everything?")) {
-                cellInputs.forEach(i => {
-                    i.value = '';
-                    i.classList.remove('correct', 'incorrect');
-                });
-            }
-        }
+    function showSelector() {
+        location.reload();
+    }
 
-        function showSelector() {
-            location.reload();
-        }
-
-        init();
+    init();
     </script>
 </body>
 </html>
+
