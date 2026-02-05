@@ -20,8 +20,8 @@
             --error-red: #d63031;
             --highlight-blue: #edf2f7;
             --active-gold: #fcf8e3;
-            /* Dynamic cell sizing */
-            --cell-size: clamp(25px, 6vw, 45px);
+            /* Slightly smaller base cell for mobile breathing room */
+            --cell-size: clamp(30px, 8vw, 45px);
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -36,10 +36,10 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
-            overflow-x: hidden;
+            /* Changed to allow vertical scrolling while container handles horizontal */
+            overflow-x: hidden; 
         }
 
-        /* --- Header Section --- */
         header {
             width: 100%;
             padding: 20px;
@@ -55,7 +55,6 @@
             color: var(--primary-navy);
         }
 
-        /* --- Puzzle Selector --- */
         .puzzle-selector {
             padding: 40px 20px;
             max-width: 600px;
@@ -86,11 +85,10 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
-        /* --- Main Game View --- */
         .crossword-view {
             display: none;
             width: 100%;
-            max-width: 800px;
+            max-width: 100%; /* Ensure it can fill screen */
             padding: 10px;
             flex-direction: column;
             gap: 15px;
@@ -98,7 +96,6 @@
 
         .crossword-view.active { display: flex; }
 
-        /* --- Sticky Clue Bar (The "Hero" of the refactor) --- */
         .sticky-clue-container {
             position: sticky;
             top: 0;
@@ -106,16 +103,14 @@
             background: var(--primary-navy);
             color: white;
             padding: 15px;
-            margin: 0 -10px; /* Bleed to edges */
+            margin: 0 -10px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             display: flex;
             align-items: center;
-            min-height: 70px;
+            min-height: 75px;
         }
 
-        .current-clue-info {
-            flex: 1;
-        }
+        .current-clue-info { flex: 1; }
 
         .clue-label {
             font-size: 0.7rem;
@@ -128,20 +123,22 @@
         }
 
         #clueText {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             line-height: 1.3;
             font-weight: 500;
         }
 
-        /* --- Grid Layout --- */
+        /* FIX: Added scrolling to the grid container */
         .grid-container {
             background: white;
-            padding: 15px;
+            padding: 20px 10px;
             border-radius: 12px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            display: flex;
-            justify-content: center;
-            touch-action: manipulation;
+            display: block; /* Changed from flex to allow scroll */
+            overflow-x: auto; /* Enable horizontal scroll */
+            -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
+            width: 100%;
+            max-width: 100vw;
         }
 
         .grid {
@@ -150,6 +147,7 @@
             border: 2px solid var(--primary-navy);
             gap: 1px;
             width: fit-content;
+            margin: 0 auto; /* Center if smaller than screen */
         }
 
         .cell {
@@ -165,7 +163,7 @@
             position: absolute;
             top: 1px;
             left: 2px;
-            font-size: clamp(7px, 1.5vw, 10px);
+            font-size: 9px;
             font-weight: 700;
             color: var(--primary-navy);
             z-index: 1;
@@ -176,13 +174,13 @@
             height: 100%;
             border: none;
             text-align: center;
-            font-size: clamp(14px, 3vw, 20px);
+            font-size: 18px;
             font-weight: 700;
             text-transform: uppercase;
             outline: none;
             background: transparent;
             padding: 0;
-            caret-color: transparent; /* Cleaner on mobile */
+            caret-color: transparent;
         }
 
         .cell.highlighted { background-color: var(--highlight-blue); }
@@ -190,21 +188,25 @@
         .cell-input.correct { color: var(--success-green); }
         .cell-input.incorrect { background: #fff1f1; color: var(--error-red); }
 
-        /* --- Mobile Controls --- */
+        /* REFACTORED ACTIONS FOR 4 BUTTONS */
         .game-actions {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            width: 100%;
+            max-width: 400px;
+            align-self: center;
         }
 
         .btn-action {
-            padding: 12px;
+            padding: 12px 5px;
             border-radius: 8px;
             border: 1px solid var(--border-light);
             background: white;
-            font-weight: 600;
-            font-size: 0.8rem;
+            font-weight: 700;
+            font-size: 0.75rem;
             cursor: pointer;
+            text-transform: uppercase;
         }
 
         .btn-primary {
@@ -213,40 +215,29 @@
             border: none;
         }
 
-        /* --- Full Clue List (Now at the bottom, non-intrusive) --- */
+        .btn-reveal {
+            background: #fff;
+            border: 1px solid var(--primary-navy);
+            color: var(--primary-navy);
+        }
+
         .clues-footer {
             margin-top: 20px;
             background: #fff;
             padding: 20px;
             border-radius: 12px;
             border: 1px solid var(--border-light);
+            margin-bottom: 120px; /* Space for sticky bar */
         }
-
-        .clues-footer h3 {
-            font-family: 'Libre Baskerville', serif;
-            font-size: 1rem;
-            border-bottom: 2px solid var(--accent-gold);
-            padding-bottom: 5px;
-        }
-
-        .clue-list-item {
-            padding: 8px 0;
-            font-size: 0.85rem;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-        }
-
-        .clue-list-item.done { opacity: 0.4; text-decoration: line-through; }
 
         @media (max-width: 600px) {
             .sticky-clue-container {
                 position: fixed;
                 top: auto;
-                bottom: 0; /* Sticky to bottom on mobile like a keyboard bar */
+                bottom: 0;
                 margin: 0;
                 width: 100%;
             }
-            .crossword-view { padding-bottom: 100px; }
         }
     </style>
 </head>
@@ -267,7 +258,7 @@
                 <span class="clue-label" id="clueLabel">Select a cell</span>
                 <div id="clueText">Tap any white square to begin your challenge.</div>
             </div>
-            <button class="btn-action" onclick="toggleDirection()" style="margin-left:10px; width:50px;">⇄</button>
+            <button class="btn-action" onclick="toggleDirection()" style="margin-left:10px; width:50px; font-size: 1.2rem;">⇄</button>
         </div>
 
         <div class="grid-container">
@@ -275,9 +266,10 @@
         </div>
 
         <div class="game-actions">
-            <button class="btn-action btn-primary" onclick="checkAnswers()">CHECK</button>
-            <button class="btn-action" onclick="clearPuzzle()">CLEAR</button>
-            <button class="btn-action" onclick="showSelector()">EXIT</button>
+            <button class="btn-action btn-primary" onclick="checkAnswers()">Check Work</button>
+            <button class="btn-action btn-reveal" onclick="revealSolution()">Full Solution</button>
+            <button class="btn-action" onclick="clearPuzzle()">Clear All</button>
+            <button class="btn-action" onclick="showSelector()">Exit Game</button>
         </div>
 
         <div class="clues-footer">
@@ -303,7 +295,6 @@
         let puzzlesData = [];
         let cellInputs = [];
 
-        // Load data
         async function init() {
             try {
                 const res = await fetch('chem_crosswords_fixed.json');
@@ -361,23 +352,19 @@
             const r = parseInt(input.dataset.row);
             const c = parseInt(input.dataset.col);
             
-            // Highlight logic
             document.querySelectorAll('.cell').forEach(el => el.classList.remove('highlighted', 'active-cell'));
             input.parentElement.classList.add('active-cell');
 
             let word = findWordAt(r, c, currentDirection);
             
-            // If clicking current active cell, swap direction
             if (!word) {
                 toggleDirection();
                 return;
             }
 
-            // Update Sticky Clue
             document.getElementById('clueLabel').innerText = `${word.number} ${word.direction.toUpperCase()}`;
             document.getElementById('clueText').innerText = word.clue;
 
-            // Highlight word path
             const dr = currentDirection === 'down' ? 1 : 0;
             const dc = currentDirection === 'across' ? 1 : 0;
             for(let i=0; i < word.word.length; i++) {
@@ -442,6 +429,7 @@
                     currentDirection = w.direction;
                     const input = document.querySelector(`.cell-input[data-row="${w.start_row}"][data-col="${w.start_col}"]`);
                     input.focus();
+                    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 };
                 (w.direction === 'across' ? across : down).appendChild(item);
             });
@@ -458,6 +446,16 @@
                 } else { win = false; }
             });
             if (win) document.getElementById('successOverlay').style.display = 'flex';
+        }
+
+        function revealSolution() {
+            if(confirm("Show the full solution?")) {
+                cellInputs.forEach(input => {
+                    input.value = input.dataset.answer;
+                    input.classList.add('correct');
+                    input.classList.remove('incorrect');
+                });
+            }
         }
 
         function clearPuzzle() {
