@@ -157,10 +157,8 @@
 
         .cell.null { background: var(--primary-navy); }
 
-        /* HIGHLIGHT STYLES */
         .cell.highlighted { background-color: var(--highlight-blue); }
         
-        /* THE CURRENT CELL BEING INPUTTED */
         .cell.active-cell { 
             background-color: var(--active-gold) !important; 
             outline: 2px solid var(--accent-gold);
@@ -302,9 +300,13 @@
     let cellInputs = [];
 
     async function init() {
+        console.log("🚀 App Init: Fetching puzzles...");
         try {
             const res = await fetch('chem_crosswords_fixed.json');
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
             puzzlesData = await res.json();
+            console.log("📦 Puzzles Loaded Successfully:", puzzlesData);
+            
             const grid = document.getElementById('puzzleGrid');
             puzzlesData.forEach(p => {
                 const btn = document.createElement('button');
@@ -314,12 +316,19 @@
                 grid.appendChild(btn);
             });
         } catch (e) { 
-            console.error("Data load failed. Ensure chem_crosswords_fixed.json is in the same folder."); 
+            console.error("❌ Data load failed:", e.message); 
+            alert("Could not load puzzle data. Check console for details.");
         }
     }
 
     function startPuzzle(id) {
+        console.log(`🎮 Starting Puzzle: ${id}`);
         currentPuzzle = puzzlesData.find(p => p.puzzle_id === id);
+        if (!currentPuzzle) {
+            console.error(`❌ Puzzle with id ${id} not found in data.`);
+            return;
+        }
+        
         document.getElementById('puzzleSelector').style.display = 'none';
         document.getElementById('mainHeader').style.display = 'none';
         document.getElementById('crosswordView').classList.add('active');
@@ -328,6 +337,7 @@
     }
 
     function renderGrid() {
+        console.log("🛠 Rendering Grid...");
         const gridEl = document.getElementById('crosswordGrid');
         const { grid, number_grid, rows, cols } = currentPuzzle;
         gridEl.style.gridTemplateColumns = `repeat(${cols}, var(--cell-size))`;
@@ -340,7 +350,6 @@
                 if (val === null) {
                     html += '<div class="cell null"></div>';
                 } else {
-                    // Added onmousedown to prevent focus-stealing flickering
                     html += `
                     <div class="cell" data-row="${r}" data-col="${c}" onclick="handleCellClick(this)">
                         ${num ? `<span class="cell-number">${num}</span>` : ''}
@@ -355,16 +364,20 @@
         }
         gridEl.innerHTML = html;
         cellInputs = Array.from(document.querySelectorAll('.cell-input'));
+        console.log(`✅ Grid Rendered: ${rows}x${cols}. Total active cells: ${cellInputs.length}`);
     }
 
-    // --- FIXED: Better logic to distinguish First Click vs. Toggle Click ---
     function handleCellClick(cellDiv) {
         const input = cellDiv.querySelector('input');
+        const r = cellDiv.dataset.row;
+        const c = cellDiv.dataset.col;
+        console.log(`🖱 Cell Clicked: [Row: ${r}, Col: ${c}]`);
         
-        // Only toggle if this cell was ALREADY the active one before the click logic processed
-        if (cellDiv.classList.contains('active-cell')) {
+        if (document.activeElement === input) {
+            console.log("🔄 Cell already active. Toggling direction.");
             toggleDirection();
         } else {
+            console.log("🎯 Focusing new cell.");
             input.focus();
         }
     }
@@ -372,114 +385,85 @@
     function handleFocus(input) {
         const r = parseInt(input.dataset.row);
         const c = parseInt(input.dataset.col);
+        console.log(`🔦 handleFocus triggered for: [Row: ${r}, Col: ${c}]`);
         
         const hasAcross = findWordAt(r, c, 'across');
         const hasDown = findWordAt(r, c, 'down');
+        console.log(`🔎 Available words here: Across: ${!!hasAcross}, Down: ${!!hasDown}`);
 
-        // Logic: If switching into a new cell, prioritize the direction 
-        // that matches our current flow, unless it doesn't exist.
         if (hasAcross && hasDown) {
-            if (currentDirection !== 'down' && currentDirection !== 'across') {
-                 currentDirection = 'across';
+            if (currentDirection !== 'down') {
+                console.log("⚡ Multi-way cell: Defaulting to Across.");
+                currentDirection = 'across';
             }
-            // If we are already in a direction that is valid for this cell, keep it.
-            // If the current direction is invalid for this cell, switch.
-            if (currentDirection === 'across' && !hasAcross) currentDirection = 'down';
-            if (currentDirection === 'down' && !hasDown) currentDirection = 'across';
         } else if (hasAcross) {
             currentDirection = 'across';
         } else if (hasDown) {
             currentDirection = 'down';
         }
-
+        
+        console.log(`🧭 Final Direction for this focus: ${currentDirection}`);
         updateHighlights(r, c);
     }
 
-    // --- FIXED: Added Defensive Type Parsing ---
     function updateHighlights(r, c) {
-        // Ensure inputs are numbers
-        r = parseInt(r);
-        c = parseInt(c);
-
+        console.log(`✨ Updating UI highlights for: [Row: ${r}, Col: ${c}] Direction: ${currentDirection}`);
         const word = findWordAt(r, c, currentDirection);
         
-        // Clear UI first
-        document.querySelectorAll('.cell').forEach(el => el.classList.remove('highlighted', 'active-cell'));
-        
-        // Highlight active cell immediately (even if no word is found, e.g. singular letter)
-        const activeCellDiv = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
-        if (activeCellDiv) activeCellDiv.classList.add('active-cell');
-
         if (!word) {
-            document.getElementById('clueLabel').innerText = "NO CLUE";
-            document.getElementById('clueText').innerText = "";
+            console.warn(`⚠️ No word found at [${r}, ${c}] for direction: ${currentDirection}. This might cause the length error.`);
             return;
         }
 
-        // Update Clue UI
+        document.querySelectorAll('.cell').forEach(el => el.classList.remove('highlighted', 'active-cell'));
+        
+        const activeCellDiv = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+        if (activeCellDiv) activeCellDiv.classList.add('active-cell');
+
         document.getElementById('clueLabel').innerText = `${word.number} ${word.direction.toUpperCase()}`;
         document.getElementById('clueText').innerText = word.clue;
 
-        // Highlight Range
         const dr = word.direction === 'down' ? 1 : 0;
         const dc = word.direction === 'across' ? 1 : 0;
         
-        // Ensure start coordinates are numbers
-        const startR = parseInt(word.start_row);
-        const startC = parseInt(word.start_col);
-
-        for(let i = 0; i < word.word.length; i++) {
-            const targetR = startR + (i * dr);
-            const targetC = startC + (i * dc);
-            
-            // Selector uses quotes to be safe
+        console.log(`🖌 Highlighting word: "${word.word}" starting at [${word.start_row}, ${word.start_col}]`);
+        for(let i=0; i < word.word.length; i++) {
+            const targetR = word.start_row + i*dr;
+            const targetC = word.start_col + i*dc;
             const cell = document.querySelector(`.cell[data-row="${targetR}"][data-col="${targetC}"]`);
             if (cell) cell.classList.add('highlighted');
         }
     }
 
-    // --- FIXED: Handle button clicks correctly ---
     function toggleDirection() {
-        // 1. Determine the active input. 
-        // If the button was clicked, document.activeElement is the button (bad).
-        // So we look for the .active-cell class in the DOM.
-        let input;
-        
-        if (document.activeElement && document.activeElement.classList.contains('cell-input')) {
-            input = document.activeElement;
-        } else {
-            const activeCell = document.querySelector('.cell.active-cell');
-            if (activeCell) input = activeCell.querySelector('.cell-input');
-        }
+        const active = document.activeElement;
+        if (!active || !active.dataset.row) return;
 
-        // If we still have no input, we can't toggle
-        if (!input) return;
-
-        const r = parseInt(input.dataset.row);
-        const c = parseInt(input.dataset.col);
-        
+        const r = parseInt(active.dataset.row);
+        const c = parseInt(active.dataset.col);
         const newDir = currentDirection === 'across' ? 'down' : 'across';
         
+        console.log(`🔄 Attempting toggle to: ${newDir}`);
         if (findWordAt(r, c, newDir)) {
             currentDirection = newDir;
+            console.log(`✅ Toggled successfully to: ${currentDirection}`);
             updateHighlights(r, c);
-            input.focus(); // IMPORTANT: Return focus to input after button click
+        } else {
+            console.log(`🚫 Toggle ignored: No "${newDir}" word for this cell.`);
         }
     }
 
     function findWordAt(r, c, dir) {
-        if (!currentPuzzle || !currentPuzzle.words) return null;
+        if (!currentPuzzle || !currentPuzzle.words) {
+            console.error("❌ findWordAt called but puzzle data is missing!");
+            return null;
+        }
         return currentPuzzle.words.find(w => {
             if (w.direction !== dir) return false;
-            
-            // Ensure numbers for safe math
-            const startR = parseInt(w.start_row);
-            const startC = parseInt(w.start_col);
             const dr = dir === 'down' ? 1 : 0;
             const dc = dir === 'across' ? 1 : 0;
-            
             for(let i=0; i < w.word.length; i++) {
-                if (startR + i*dr === r && startC + i*dc === c) return true;
+                if (w.start_row + i*dr === r && w.start_col + i*dc === c) return true;
             }
             return false;
         });
@@ -487,7 +471,8 @@
 
     function handleInput(input) {
         input.value = input.value.toUpperCase();
-        input.classList.remove('incorrect'); // User is correcting it, remove red bg
+        input.classList.remove('incorrect');
+        console.log(`⌨️ Input detected: "${input.value}" at [${input.dataset.row}, ${input.dataset.col}]`);
         
         if (input.value) {
             moveFocus(input, 1);
@@ -495,11 +480,12 @@
     }
 
     function handleKeydown(e, input) {
-        // Allow Arrow keys to navigate freely
         if (e.key === 'Backspace' && !input.value) {
+            console.log("🔙 Backspace detected on empty cell. Moving backward.");
             e.preventDefault();
             moveFocus(input, -1);
         } else if (e.key.startsWith('Arrow')) {
+            console.log(`🏹 Arrow Key: ${e.key}`);
             e.preventDefault();
             const r = parseInt(input.dataset.row);
             const c = parseInt(input.dataset.col);
@@ -509,11 +495,7 @@
             if (e.key === 'ArrowLeft') nc--;
             if (e.key === 'ArrowRight') nc++;
             const next = document.querySelector(`.cell-input[data-row="${nr}"][data-col="${nc}"]`);
-            if (next) {
-                next.focus();
-                // Optional: Update highlight on arrow move based on new cell's primary word
-                // handleFocus will trigger automatically
-            }
+            if (next) next.focus();
         }
     }
 
@@ -522,13 +504,18 @@
         const c = parseInt(input.dataset.col);
         const nextR = currentDirection === 'down' ? r + step : r;
         const nextC = currentDirection === 'across' ? c + step : c;
+        
+        console.log(`🏃 Moving focus by ${step} along ${currentDirection} to [${nextR}, ${nextC}]`);
         const next = document.querySelector(`.cell-input[data-row="${nextR}"][data-col="${nextC}"]`);
         if (next) {
             next.focus();
+        } else {
+            console.log("⏹ Reach end of word or grid boundary.");
         }
     }
 
     function renderReferenceClues() {
+        console.log("📚 Rendering Reference Clues...");
         const across = document.getElementById('acrossRef');
         const down = document.getElementById('downRef');
         across.innerHTML = '<strong>Across</strong>';
@@ -541,12 +528,13 @@
             item.style.padding = '4px 0';
             item.innerHTML = `<b>${w.number}.</b> ${w.clue}`;
             item.onclick = () => {
+                console.log(`🖱 Clue clicked: ${w.number} ${w.direction}`);
                 currentDirection = w.direction;
                 const input = document.querySelector(`.cell-input[data-row="${w.start_row}"][data-col="${w.start_col}"]`);
                 if(input) {
                     input.focus();
                     input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    // handleFocus will trigger via the focus() call above
+                    updateHighlights(w.start_row, w.start_col);
                 }
             };
             (w.direction === 'across' ? across : down).appendChild(item);
@@ -554,22 +542,29 @@
     }
 
     function checkAnswers() {
+        console.log("🕵️ Checking answers...");
         let win = true;
+        let correctCount = 0;
         cellInputs.forEach(input => {
             input.classList.remove('incorrect', 'correct');
-            const answer = input.dataset.answer;
-            if (input.value === answer) {
+            if (input.value === input.dataset.answer) {
                 input.classList.add('correct');
+                correctCount++;
             } else if (input.value !== '') {
                 input.classList.add('incorrect');
                 win = false;
             } else { win = false; }
         });
-        if (win) document.getElementById('successOverlay').style.display = 'flex';
+        console.log(`📊 Check result: ${correctCount}/${cellInputs.length} correct.`);
+        if (win) {
+            console.log("🏆 Puzzle Complete!");
+            document.getElementById('successOverlay').style.display = 'flex';
+        }
     }
 
     function revealSolution() {
         if(confirm("Show the full solution?")) {
+            console.log("🔓 Revealing full solution...");
             cellInputs.forEach(input => {
                 input.value = input.dataset.answer;
                 input.classList.add('correct');
@@ -580,6 +575,7 @@
 
     function clearPuzzle() {
         if(confirm("Clear everything?")) {
+            console.log("🧹 Clearing puzzle...");
             cellInputs.forEach(i => {
                 i.value = '';
                 i.classList.remove('correct', 'incorrect');
@@ -588,11 +584,11 @@
     }
 
     function showSelector() {
+        console.log("🚪 Exiting to selector.");
         location.reload();
     }
 
     init();
-</script>
+    </script>
 </body>
 </html>
-
