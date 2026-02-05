@@ -340,6 +340,7 @@
                 if (val === null) {
                     html += '<div class="cell null"></div>';
                 } else {
+                    // Added onmousedown to prevent focus-stealing flickering
                     html += `
                     <div class="cell" data-row="${r}" data-col="${c}" onclick="handleCellClick(this)">
                         ${num ? `<span class="cell-number">${num}</span>` : ''}
@@ -356,10 +357,12 @@
         cellInputs = Array.from(document.querySelectorAll('.cell-input'));
     }
 
-    // Handles clicking the cell container
+    // --- FIXED: Better logic to distinguish First Click vs. Toggle Click ---
     function handleCellClick(cellDiv) {
         const input = cellDiv.querySelector('input');
-        if (document.activeElement === input) {
+        
+        // Only toggle if this cell was ALREADY the active one before the click logic processed
+        if (cellDiv.classList.contains('active-cell')) {
             toggleDirection();
         } else {
             input.focus();
@@ -370,16 +373,19 @@
         const r = parseInt(input.dataset.row);
         const c = parseInt(input.dataset.col);
         
-        // 1. Logic to default to Across if both directions are available
         const hasAcross = findWordAt(r, c, 'across');
         const hasDown = findWordAt(r, c, 'down');
 
+        // Logic: If switching into a new cell, prioritize the direction 
+        // that matches our current flow, unless it doesn't exist.
         if (hasAcross && hasDown) {
-            // Default to 'across' if we just clicked/focused a multi-direction cell
-            // unless we are already in 'down' mode
-            if (currentDirection !== 'down') {
-                currentDirection = 'across';
+            if (currentDirection !== 'down' && currentDirection !== 'across') {
+                 currentDirection = 'across';
             }
+            // If we are already in a direction that is valid for this cell, keep it.
+            // If the current direction is invalid for this cell, switch.
+            if (currentDirection === 'across' && !hasAcross) currentDirection = 'down';
+            if (currentDirection === 'down' && !hasDown) currentDirection = 'across';
         } else if (hasAcross) {
             currentDirection = 'across';
         } else if (hasDown) {
@@ -389,48 +395,75 @@
         updateHighlights(r, c);
     }
 
+    // --- FIXED: Added Defensive Type Parsing ---
     function updateHighlights(r, c) {
+        // Ensure inputs are numbers
+        r = parseInt(r);
+        c = parseInt(c);
+
         const word = findWordAt(r, c, currentDirection);
         
-        // Safety check to prevent the "Cannot read properties of undefined" bug
-        if (!word) return;
-
-        // UI Updates: Remove old highlights
+        // Clear UI first
         document.querySelectorAll('.cell').forEach(el => el.classList.remove('highlighted', 'active-cell'));
         
-        // Highlight the specific cell being inputted
+        // Highlight active cell immediately (even if no word is found, e.g. singular letter)
         const activeCellDiv = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
         if (activeCellDiv) activeCellDiv.classList.add('active-cell');
+
+        if (!word) {
+            document.getElementById('clueLabel').innerText = "NO CLUE";
+            document.getElementById('clueText').innerText = "";
+            return;
+        }
 
         // Update Clue UI
         document.getElementById('clueLabel').innerText = `${word.number} ${word.direction.toUpperCase()}`;
         document.getElementById('clueText').innerText = word.clue;
 
-        // Highlight the entire word range
+        // Highlight Range
         const dr = word.direction === 'down' ? 1 : 0;
         const dc = word.direction === 'across' ? 1 : 0;
         
-        for(let i=0; i < word.word.length; i++) {
-            const targetR = word.start_row + i*dr;
-            const targetC = word.start_col + i*dc;
+        // Ensure start coordinates are numbers
+        const startR = parseInt(word.start_row);
+        const startC = parseInt(word.start_col);
+
+        for(let i = 0; i < word.word.length; i++) {
+            const targetR = startR + (i * dr);
+            const targetC = startC + (i * dc);
+            
+            // Selector uses quotes to be safe
             const cell = document.querySelector(`.cell[data-row="${targetR}"][data-col="${targetC}"]`);
             if (cell) cell.classList.add('highlighted');
         }
     }
 
+    // --- FIXED: Handle button clicks correctly ---
     function toggleDirection() {
-        const active = document.activeElement;
-        if (!active || !active.dataset.row) return;
+        // 1. Determine the active input. 
+        // If the button was clicked, document.activeElement is the button (bad).
+        // So we look for the .active-cell class in the DOM.
+        let input;
+        
+        if (document.activeElement && document.activeElement.classList.contains('cell-input')) {
+            input = document.activeElement;
+        } else {
+            const activeCell = document.querySelector('.cell.active-cell');
+            if (activeCell) input = activeCell.querySelector('.cell-input');
+        }
 
-        const r = parseInt(active.dataset.row);
-        const c = parseInt(active.dataset.col);
+        // If we still have no input, we can't toggle
+        if (!input) return;
+
+        const r = parseInt(input.dataset.row);
+        const c = parseInt(input.dataset.col);
         
         const newDir = currentDirection === 'across' ? 'down' : 'across';
         
-        // Only toggle if the other direction actually exists for this cell
         if (findWordAt(r, c, newDir)) {
             currentDirection = newDir;
             updateHighlights(r, c);
+            input.focus(); // IMPORTANT: Return focus to input after button click
         }
     }
 
@@ -438,10 +471,15 @@
         if (!currentPuzzle || !currentPuzzle.words) return null;
         return currentPuzzle.words.find(w => {
             if (w.direction !== dir) return false;
+            
+            // Ensure numbers for safe math
+            const startR = parseInt(w.start_row);
+            const startC = parseInt(w.start_col);
             const dr = dir === 'down' ? 1 : 0;
             const dc = dir === 'across' ? 1 : 0;
+            
             for(let i=0; i < w.word.length; i++) {
-                if (w.start_row + i*dr === r && w.start_col + i*dc === c) return true;
+                if (startR + i*dr === r && startC + i*dc === c) return true;
             }
             return false;
         });
@@ -449,7 +487,7 @@
 
     function handleInput(input) {
         input.value = input.value.toUpperCase();
-        input.classList.remove('incorrect');
+        input.classList.remove('incorrect'); // User is correcting it, remove red bg
         
         if (input.value) {
             moveFocus(input, 1);
@@ -457,6 +495,7 @@
     }
 
     function handleKeydown(e, input) {
+        // Allow Arrow keys to navigate freely
         if (e.key === 'Backspace' && !input.value) {
             e.preventDefault();
             moveFocus(input, -1);
@@ -470,7 +509,11 @@
             if (e.key === 'ArrowLeft') nc--;
             if (e.key === 'ArrowRight') nc++;
             const next = document.querySelector(`.cell-input[data-row="${nr}"][data-col="${nc}"]`);
-            if (next) next.focus();
+            if (next) {
+                next.focus();
+                // Optional: Update highlight on arrow move based on new cell's primary word
+                // handleFocus will trigger automatically
+            }
         }
     }
 
@@ -503,7 +546,7 @@
                 if(input) {
                     input.focus();
                     input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    updateHighlights(w.start_row, w.start_col);
+                    // handleFocus will trigger via the focus() call above
                 }
             };
             (w.direction === 'across' ? across : down).appendChild(item);
@@ -514,7 +557,8 @@
         let win = true;
         cellInputs.forEach(input => {
             input.classList.remove('incorrect', 'correct');
-            if (input.value === input.dataset.answer) {
+            const answer = input.dataset.answer;
+            if (input.value === answer) {
                 input.classList.add('correct');
             } else if (input.value !== '') {
                 input.classList.add('incorrect');
@@ -548,6 +592,7 @@
     }
 
     init();
-    </script>
+</script>
 </body>
 </html>
+
