@@ -1,1 +1,479 @@
-<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> <title>Chemistry Crossword Challenge</title> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"> <style> :root { --cell-size: 40px; --primary-navy: #1a2a3a; --accent-gold: #c5a059; --bg-body: #f8f9fa; --bg-card: #ffffff; --text-main: #2d3436; --text-muted: #636e72; --border-light: #e1e4e8; --success-green: #27ae60; --error-red: #d63031; --highlight-blue: #edf2f7; --active-gold: #fcf8e3; } * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; } body { font-family: 'Inter', sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; display: flex; flex-direction: column; align-items: center; padding: 20px 16px; min-height: 100vh; } h1 { font-family: 'Libre Baskerville', serif; font-size: clamp(1.5rem, 5vw, 2.5rem); margin: 0 0 8px 0; color: var(--primary-navy); letter-spacing: -0.5px; text-align: center; } .subtitle { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px; text-transform: uppercase; letter-spacing: 2px; font-weight: 500; text-align: center; } /* Puzzle Selector */ .puzzle-selector { background: var(--bg-card); padding: 32px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); max-width: 500px; width: 100%; text-align: center; border: 1px solid var(--border-light); } .puzzle-selector h2 { font-family: 'Libre Baskerville', serif; margin-bottom: 24px; font-size: 1.5rem; } .puzzle-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; } .puzzle-btn { aspect-ratio: 1; background: var(--bg-body); border: 1px solid var(--border-light); border-radius: 8px; font-weight: 600; color: var(--primary-navy); cursor: pointer; transition: all 0.2s; font-size: 1.1rem; } .puzzle-btn:hover { border-color: var(--accent-gold); color: var(--accent-gold); background: #fff; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(197, 160, 89, 0.2); } /* Main Game Layout */ .crossword-view { display: none; width: 100%; max-width: 1200px; flex-direction: column; } .crossword-view.active { display: flex; } .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-light); flex-wrap: wrap; gap: 12px; } .back-btn { background: none; border: none; color: var(--text-muted); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; padding: 8px 0; } .back-btn:hover { color: var(--primary-navy); } .action-buttons { display: flex; gap: 8px; flex-wrap: wrap; } .action-btn { padding: 8px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; border: 1px solid var(--border-light); background: white; } .check-btn { background: var(--primary-navy); color: white; border: none; } .check-btn:hover { opacity: 0.9; } .solution-btn:hover { background: #fff5f5; color: var(--error-red); } .container { display: grid; grid-template-columns: 1fr 340px; gap: 24px; background: var(--bg-card); padding: 24px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid var(--border-light); } /* Grid */ .grid-section { display: flex; flex-direction: column; gap: 16px; min-width: 0; } .grid-wrapper { display: flex; justify-content: center; overflow-x: auto; padding: 4px; } .grid { display: grid; background-color: var(--primary-navy); border: 2px solid var(--primary-navy); gap: 1px; } .cell { width: var(--cell-size); height: var(--cell-size); background-color: white; position: relative; flex-shrink: 0; } .cell.null { background-color: var(--primary-navy); } .cell-number { position: absolute; top: 2px; left: 3px; font-size: 9px; font-weight: 700; color: var(--primary-navy); z-index: 1; line-height: 1; } .cell-input { width: 100%; height: 100%; border: none; text-align: center; font-size: 1.1rem; font-weight: 700; text-transform: uppercase; outline: none; background: transparent; padding: 0; } .cell.highlighted { background-color: var(--highlight-blue); } .cell.active-cell { background-color: var(--active-gold); } .cell-input.correct { color: var(--success-green); } .cell-input.incorrect { color: var(--error-red); background: #fff1f1; } .cell-input.revealed { color: var(--accent-gold); } /* Clues Display */ .current-clue { background: var(--bg-body); padding: 14px 16px; border-radius: 8px; border-left: 4px solid var(--accent-gold); font-size: 0.95rem; line-height: 1.5; min-height: 60px; display: flex; align-items: center; } .clue-num { font-weight: 800; color: var(--accent-gold); margin-right: 8px; flex-shrink: 0; } .clues-section { display: flex; flex-direction: column; min-width: 0; } .clues-column { overflow-y: auto; max-height: 500px; padding-right: 8px; } .clues-column::-webkit-scrollbar { width: 6px; } .clues-column::-webkit-scrollbar-track { background: var(--bg-body); border-radius: 3px; } .clues-column::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; } .clues-column h3 { font-family: 'Libre Baskerville', serif; font-size: 1rem; margin: 20px 0 12px 0; border-bottom: 2px solid var(--accent-gold); padding-bottom: 8px; color: var(--primary-navy); } .clues-column h3:first-child { margin-top: 0; } .clues-column ul { padding: 0; margin: 0; list-style: none; } .clue-item { padding: 10px 12px; font-size: 0.88rem; cursor: pointer; border-radius: 6px; margin-bottom: 4px; color: var(--text-main); line-height: 1.5; transition: all 0.15s; border: 1px solid transparent; } .clue-item strong { color: var(--accent-gold); margin-right: 6px; font-weight: 700; } .clue-item:hover { background: var(--bg-body); border-color: var(--border-light); } .clue-item.active { background: var(--highlight-blue); color: var(--primary-navy); font-weight: 500; border-color: var(--accent-gold); } .clue-item.completed { text-decoration: line-through; opacity: 0.5; } .progress-bar { height: 6px; background: var(--border-light); border-radius: 3px; overflow: hidden; } .progress-fill { height: 100%; background: var(--accent-gold); transition: width 0.4s ease; border-radius: 3px; } /* Overlays */ .success-overlay { display: none; position: fixed; inset: 0; background: rgba(26, 42, 58, 0.9); z-index: 1000; align-items: center; justify-content: center; padding: 20px; } .success-overlay.active { display: flex; } .success-content { background: white; padding: 40px; border-radius: 12px; text-align: center; max-width: 400px; width: 100%; } .success-content h2 { font-family: 'Libre Baskerville', serif; color: var(--primary-navy); margin-top: 0; } .success-content button { margin-top: 20px; padding: 12px 24px; background: var(--accent-gold); color: white; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 0.95rem; } /* Mobile Styles */ @media (max-width: 900px) { :root { --cell-size: 32px; } body { padding: 16px 12px; } .container { grid-template-columns: 1fr; padding: 20px 16px; gap: 20px; } .top-bar { flex-direction: column; align-items: stretch; } .action-buttons { justify-content: stretch; } .action-btn { flex: 1; text-align: center; } .clues-section { order: -1; } .clues-column { max-height: 300px; } .grid-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; } .current-clue { font-size: 0.9rem; padding: 12px 14px; } .puzzle-selector { padding: 24px 20px; } } @media (max-width: 500px) { :root { --cell-size: 28px; } h1 { font-size: 1.5rem; } .subtitle { font-size: 0.75rem; margin-bottom: 20px; } .cell-input { font-size: 1rem; } .cell-number { font-size: 8px; } .clue-item { font-size: 0.85rem; padding: 8px 10px; } .puzzle-grid { gap: 8px; } .action-btn { padding: 8px 12px; font-size: 0.75rem; } } </style> </head> <body> <h1>Chemistry Crosswords</h1> <p class="subtitle">Periodic Elements & Principles</p> <div class="puzzle-selector" id="puzzleSelector"> <h2>Curated Challenges</h2> <div class="puzzle-grid" id="puzzleGrid"></div> </div> <div class="crossword-view" id="crosswordView"> <div class="top-bar"> <button class="back-btn" onclick="showSelector()">← BACK TO COLLECTION</button> <div class="action-buttons"> <button class="action-btn check-btn" onclick="checkAnswers()">CHECK ANSWERS</button> <button class="action-btn clear-btn" onclick="clearPuzzle()">CLEAR</button> <button class="action-btn solution-btn" onclick="showSolution()">REVEAL</button> </div> </div> <div class="container"> <div class="grid-section"> <div class="grid-wrapper"> <div class="grid" id="crosswordGrid"></div> </div> <div class="current-clue" id="currentClue"> <span class="clue-num" id="clueNum">#</span> <span id="clueText">Select a cell to begin...</span> </div> <div class="progress-bar"> <div class="progress-fill" id="progressFill"></div> </div> </div> <div class="clues-section"> <div class="clues-column"> <h3>Across</h3> <ul id="acrossCluesList"></ul> <h3>Down</h3> <ul id="downCluesList"></ul> </div> </div> </div> </div> <div class="success-overlay" id="successOverlay"> <div class="success-content"> <h2>Masterfully Solved</h2> <p>You have successfully completed this chemistry challenge.</p> <button onclick="closeSuccess()">CONTINUE</button> </div> </div> <script> // CORE LOGIC (Preserved from your original file) let puzzlesData = []; let currentPuzzle = null; let currentDirection = 'across'; let currentNumber = null; let cellInputs = []; async function loadPuzzles() { try { const response = await fetch('chem_crosswords_fixed.json'); puzzlesData = await response.json(); generatePuzzleButtons(); } catch (error) { console.error('Error:', error); document.getElementById('puzzleGrid').innerHTML = '<p>Please ensure chem_crosswords_fixed.json is available.</p>'; } } function generatePuzzleButtons() { const grid = document.getElementById('puzzleGrid'); grid.innerHTML = ''; for (let i = 1; i <= 20; i++) { const btn = document.createElement('button'); btn.className = 'puzzle-btn'; btn.innerText = i; btn.onclick = () => showPuzzle(i); grid.appendChild(btn); } } function showSelector() { document.getElementById('puzzleSelector').style.display = 'block'; document.getElementById('crosswordView').classList.remove('active'); } function showPuzzle(puzzleNum) { const puzzle = puzzlesData.find(p => p.puzzle_id === puzzleNum); if (!puzzle) return; currentPuzzle = puzzle; document.getElementById('puzzleSelector').style.display = 'none'; document.getElementById('crosswordView').classList.add('active'); renderGrid(puzzle); renderClues(puzzle); updateProgress(); } function renderGrid(puzzle) { const gridEl = document.getElementById('crosswordGrid'); const { grid, number_grid, rows, cols } = puzzle; gridEl.style.gridTemplateColumns = repeat(${cols}, var(--cell-size)); cellInputs = []; let html = ''; for (let r = 0; r < rows; r++) { for (let c = 0; c < cols; c++) { const val = grid[r][c]; const num = number_grid[r][c]; if (val === null) { html += '<div class="cell null"></div>'; } else { html += <div class="cell" data-row="${r}" data-col="${c}"> ${num ? <span class="cell-number">${num}</span> : ''} <input type="text" class="cell-input" maxlength="1" data-row="${r}" data-col="${c}" data-answer="${val}" oninput="handleInput(this)" onkeydown="handleKeydown(event, this)" onfocus="handleFocus(this)" onclick="handleFocus(this)"> </div>; } } } gridEl.innerHTML = html; const inputs = document.querySelectorAll('.cell-input'); cellInputs = Array.from(inputs); } function handleInput(input) { input.value = input.value.toUpperCase(); if (input.value) moveToNext(input); updateProgress(); } function handleFocus(input) { const r = parseInt(input.dataset.row); const c = parseInt(input.dataset.col); document.querySelectorAll('.cell').forEach(el => el.classList.remove('highlighted', 'active-cell')); input.parentElement.classList.add('active-cell'); let word = currentPuzzle.words.find(w => { if (w.direction !== currentDirection) return false; const dr = currentDirection === 'down' ? 1 : 0; const dc = currentDirection === 'across' ? 1 : 0; for(let i=0; i<w.word.length; i++) { if (w.start_row + i*dr === r && w.start_col + i*dc === c) return true; } return false; }); if (!word) { currentDirection = currentDirection === 'across' ? 'down' : 'across'; return handleFocus(input); } currentNumber = word.number; document.getElementById('clueNum').innerText = word.number; document.getElementById('clueText').innerText = word.clue; // Highlight word const dr = currentDirection === 'down' ? 1 : 0; const dc = currentDirection === 'across' ? 1 : 0; for(let i=0; i<word.word.length; i++) { const target = document.querySelector(.cell[data-row="${word.start_row + i*dr}"][data-col="${word.start_col + i*dc}"]); if (target) target.classList.add('highlighted'); } document.querySelectorAll('.clue-item').forEach(li => li.classList.remove('active')); const activeClue = document.querySelector(.clue-item[data-num="${word.number}"][data-dir="${word.direction}"]); if (activeClue) { activeClue.classList.add('active'); activeClue.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } } function moveToNext(input) { const r = parseInt(input.dataset.row); const c = parseInt(input.dataset.col); const nextR = currentDirection === 'down' ? r + 1 : r; const nextC = currentDirection === 'across' ? c + 1 : c; const next = document.querySelector(.cell-input[data-row="${nextR}"][data-col="${nextC}"]); if (next) next.focus(); } function handleKeydown(e, input) { if (e.key === 'Backspace' && !input.value) { const r = parseInt(input.dataset.row); const c = parseInt(input.dataset.col); const prevR = currentDirection === 'down' ? r - 1 : r; const prevC = currentDirection === 'across' ? c - 1 : c; const prev = document.querySelector(.cell-input[data-row="${prevR}"][data-col="${prevC}"]); if (prev) prev.focus(); } } function renderClues(puzzle) { const aList = document.getElementById('acrossCluesList'); const dList = document.getElementById('downCluesList'); aList.innerHTML = ''; dList.innerHTML = ''; puzzle.words.forEach(w => { const li = document.createElement('li'); li.className = 'clue-item'; li.dataset.num = w.number; li.dataset.dir = w.direction; li.innerHTML = <strong>${w.number}.</strong> ${w.clue}; li.onclick = () => { currentDirection = w.direction; document.querySelector(.cell-input[data-row="${w.start_row}"][data-col="${w.start_col}"]).focus(); }; if (w.direction === 'across') aList.appendChild(li); else dList.appendChild(li); }); } function checkAnswers() { let win = true; cellInputs.forEach(input => { if (input.value === input.dataset.answer) { input.classList.add('correct'); input.classList.remove('incorrect'); } else { input.classList.add('incorrect'); win = false; } }); if (win) document.getElementById('successOverlay').classList.add('active'); } function showSolution() { if(confirm("Reveal all answers?")) { cellInputs.forEach(input => { input.value = input.dataset.answer; input.classList.add('revealed'); }); updateProgress(); } } function clearPuzzle() { cellInputs.forEach(input => { input.value = ''; input.classList.remove('correct', 'incorrect', 'revealed'); }); updateProgress(); } function updateProgress() { const filled = cellInputs.filter(i => i.value).length; const pct = (filled / cellInputs.length) * 100; document.getElementById('progressFill').style.width = pct + '%'; } function closeSuccess() { document.getElementById('successOverlay').classList.remove('active'); showSelector(); } loadPuzzles(); </script> </body> </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chemistry Crossword Challenge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-navy: #1a2a3a;
+            --accent-gold: #c5a059;
+            --bg-body: #f8f9fa;
+            --bg-card: #ffffff;
+            --text-main: #2d3436;
+            --text-muted: #636e72;
+            --border-light: #e1e4e8;
+            --success-green: #27ae60;
+            --error-red: #d63031;
+            --highlight-blue: #edf2f7;
+            --active-gold: #fcf8e3;
+            /* Dynamic cell sizing */
+            --cell-size: clamp(25px, 6vw, 45px);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* --- Header Section --- */
+        header {
+            width: 100%;
+            padding: 20px;
+            text-align: center;
+            background: white;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        h1 {
+            font-family: 'Libre Baskerville', serif;
+            font-size: clamp(1.2rem, 4vw, 2rem);
+            margin: 0;
+            color: var(--primary-navy);
+        }
+
+        /* --- Puzzle Selector --- */
+        .puzzle-selector {
+            padding: 40px 20px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .puzzle-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .puzzle-btn {
+            aspect-ratio: 1;
+            background: white;
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--primary-navy);
+        }
+
+        .puzzle-btn:hover {
+            border-color: var(--accent-gold);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        /* --- Main Game View --- */
+        .crossword-view {
+            display: none;
+            width: 100%;
+            max-width: 800px;
+            padding: 10px;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .crossword-view.active { display: flex; }
+
+        /* --- Sticky Clue Bar (The "Hero" of the refactor) --- */
+        .sticky-clue-container {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--primary-navy);
+            color: white;
+            padding: 15px;
+            margin: 0 -10px; /* Bleed to edges */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            min-height: 70px;
+        }
+
+        .current-clue-info {
+            flex: 1;
+        }
+
+        .clue-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent-gold);
+            font-weight: 700;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        #clueText {
+            font-size: 0.95rem;
+            line-height: 1.3;
+            font-weight: 500;
+        }
+
+        /* --- Grid Layout --- */
+        .grid-container {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: center;
+            touch-action: manipulation;
+        }
+
+        .grid {
+            display: grid;
+            background-color: var(--primary-navy);
+            border: 2px solid var(--primary-navy);
+            gap: 1px;
+            width: fit-content;
+        }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            background: white;
+            position: relative;
+        }
+
+        .cell.null { background: var(--primary-navy); }
+
+        .cell-number {
+            position: absolute;
+            top: 1px;
+            left: 2px;
+            font-size: clamp(7px, 1.5vw, 10px);
+            font-weight: 700;
+            color: var(--primary-navy);
+            z-index: 1;
+        }
+
+        .cell-input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            text-align: center;
+            font-size: clamp(14px, 3vw, 20px);
+            font-weight: 700;
+            text-transform: uppercase;
+            outline: none;
+            background: transparent;
+            padding: 0;
+            caret-color: transparent; /* Cleaner on mobile */
+        }
+
+        .cell.highlighted { background-color: var(--highlight-blue); }
+        .cell.active-cell { background-color: var(--active-gold); }
+        .cell-input.correct { color: var(--success-green); }
+        .cell-input.incorrect { background: #fff1f1; color: var(--error-red); }
+
+        /* --- Mobile Controls --- */
+        .game-actions {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .btn-action {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-light);
+            background: white;
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: var(--primary-navy);
+            color: white;
+            border: none;
+        }
+
+        /* --- Full Clue List (Now at the bottom, non-intrusive) --- */
+        .clues-footer {
+            margin-top: 20px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-light);
+        }
+
+        .clues-footer h3 {
+            font-family: 'Libre Baskerville', serif;
+            font-size: 1rem;
+            border-bottom: 2px solid var(--accent-gold);
+            padding-bottom: 5px;
+        }
+
+        .clue-list-item {
+            padding: 8px 0;
+            font-size: 0.85rem;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+
+        .clue-list-item.done { opacity: 0.4; text-decoration: line-through; }
+
+        @media (max-width: 600px) {
+            .sticky-clue-container {
+                position: fixed;
+                top: auto;
+                bottom: 0; /* Sticky to bottom on mobile like a keyboard bar */
+                margin: 0;
+                width: 100%;
+            }
+            .crossword-view { padding-bottom: 100px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header id="mainHeader">
+        <h1>Chemistry Crossword</h1>
+    </header>
+
+    <div class="puzzle-selector" id="puzzleSelector">
+        <p style="text-align:center; color: var(--text-muted);">SELECT A CHALLENGE</p>
+        <div class="puzzle-grid" id="puzzleGrid"></div>
+    </div>
+
+    <div class="crossword-view" id="crosswordView">
+        <div class="sticky-clue-container">
+            <div class="current-clue-info">
+                <span class="clue-label" id="clueLabel">Select a cell</span>
+                <div id="clueText">Tap any white square to begin your challenge.</div>
+            </div>
+            <button class="btn-action" onclick="toggleDirection()" style="margin-left:10px; width:50px;">⇄</button>
+        </div>
+
+        <div class="grid-container">
+            <div class="grid" id="crosswordGrid"></div>
+        </div>
+
+        <div class="game-actions">
+            <button class="btn-action btn-primary" onclick="checkAnswers()">CHECK</button>
+            <button class="btn-action" onclick="clearPuzzle()">CLEAR</button>
+            <button class="btn-action" onclick="showSelector()">EXIT</button>
+        </div>
+
+        <div class="clues-footer">
+            <h3>Reference List</h3>
+            <div id="clueLists">
+                <div id="acrossRef"></div>
+                <div id="downRef"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="success-overlay" id="successOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center; color:white; text-align:center;">
+        <div>
+            <h2 style="font-family:'Libre Baskerville'">Excellent Work!</h2>
+            <p>Element Mastered.</p>
+            <button class="btn-action btn-primary" onclick="location.reload()">Next Puzzle</button>
+        </div>
+    </div>
+
+    <script>
+        let currentPuzzle = null;
+        let currentDirection = 'across';
+        let puzzlesData = [];
+        let cellInputs = [];
+
+        // Load data
+        async function init() {
+            try {
+                const res = await fetch('chem_crosswords_fixed.json');
+                puzzlesData = await res.json();
+                const grid = document.getElementById('puzzleGrid');
+                puzzlesData.forEach(p => {
+                    const btn = document.createElement('button');
+                    btn.className = 'puzzle-btn';
+                    btn.innerText = p.puzzle_id;
+                    btn.onclick = () => startPuzzle(p.puzzle_id);
+                    grid.appendChild(btn);
+                });
+            } catch (e) { console.error("Data load failed"); }
+        }
+
+        function startPuzzle(id) {
+            currentPuzzle = puzzlesData.find(p => p.puzzle_id === id);
+            document.getElementById('puzzleSelector').style.display = 'none';
+            document.getElementById('mainHeader').style.display = 'none';
+            document.getElementById('crosswordView').classList.add('active');
+            renderGrid();
+            renderReferenceClues();
+        }
+
+        function renderGrid() {
+            const gridEl = document.getElementById('crosswordGrid');
+            const { grid, number_grid, rows, cols } = currentPuzzle;
+            gridEl.style.gridTemplateColumns = `repeat(${cols}, var(--cell-size))`;
+            
+            let html = '';
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const val = grid[r][c];
+                    const num = number_grid[r][c];
+                    if (val === null) {
+                        html += '<div class="cell null"></div>';
+                    } else {
+                        html += `
+                        <div class="cell" data-row="${r}" data-col="${c}">
+                            ${num ? `<span class="cell-number">${num}</span>` : ''}
+                            <input type="text" class="cell-input" maxlength="1" 
+                                data-row="${r}" data-col="${c}" data-answer="${val}"
+                                oninput="handleInput(this)" 
+                                onkeydown="handleKeydown(event, this)"
+                                onfocus="handleFocus(this)">
+                        </div>`;
+                    }
+                }
+            }
+            gridEl.innerHTML = html;
+            cellInputs = Array.from(document.querySelectorAll('.cell-input'));
+        }
+
+        function handleFocus(input) {
+            const r = parseInt(input.dataset.row);
+            const c = parseInt(input.dataset.col);
+            
+            // Highlight logic
+            document.querySelectorAll('.cell').forEach(el => el.classList.remove('highlighted', 'active-cell'));
+            input.parentElement.classList.add('active-cell');
+
+            let word = findWordAt(r, c, currentDirection);
+            
+            // If clicking current active cell, swap direction
+            if (!word) {
+                toggleDirection();
+                return;
+            }
+
+            // Update Sticky Clue
+            document.getElementById('clueLabel').innerText = `${word.number} ${word.direction.toUpperCase()}`;
+            document.getElementById('clueText').innerText = word.clue;
+
+            // Highlight word path
+            const dr = currentDirection === 'down' ? 1 : 0;
+            const dc = currentDirection === 'across' ? 1 : 0;
+            for(let i=0; i < word.word.length; i++) {
+                const cell = document.querySelector(`.cell[data-row="${word.start_row + i*dr}"][data-col="${word.start_col + i*dc}"]`);
+                if (cell) cell.classList.add('highlighted');
+            }
+        }
+
+        function toggleDirection() {
+            currentDirection = currentDirection === 'across' ? 'down' : 'across';
+            const active = document.activeElement;
+            if (active && active.classList.contains('cell-input')) handleFocus(active);
+        }
+
+        function findWordAt(r, c, dir) {
+            return currentPuzzle.words.find(w => {
+                if (w.direction !== dir) return false;
+                const dr = dir === 'down' ? 1 : 0;
+                const dc = dir === 'across' ? 1 : 0;
+                for(let i=0; i<w.word.length; i++) {
+                    if (w.start_row + i*dr === r && w.start_col + i*dc === c) return true;
+                }
+                return false;
+            });
+        }
+
+        function handleInput(input) {
+            input.value = input.value.toUpperCase();
+            if (input.value) {
+                const r = parseInt(input.dataset.row);
+                const c = parseInt(input.dataset.col);
+                const nextR = currentDirection === 'down' ? r + 1 : r;
+                const nextC = currentDirection === 'across' ? c + 1 : c;
+                const next = document.querySelector(`.cell-input[data-row="${nextR}"][data-col="${nextC}"]`);
+                if (next) next.focus();
+            }
+            input.classList.remove('incorrect');
+        }
+
+        function handleKeydown(e, input) {
+            if (e.key === 'Backspace' && !input.value) {
+                const r = parseInt(input.dataset.row);
+                const c = parseInt(input.dataset.col);
+                const prevR = currentDirection === 'down' ? r - 1 : r;
+                const prevC = currentDirection === 'across' ? c - 1 : c;
+                const prev = document.querySelector(`.cell-input[data-row="${prevR}"][data-col="${prevC}"]`);
+                if (prev) prev.focus();
+            }
+        }
+
+        function renderReferenceClues() {
+            const across = document.getElementById('acrossRef');
+            const down = document.getElementById('downRef');
+            across.innerHTML = '<strong>Across</strong>';
+            down.innerHTML = '<br><strong>Down</strong>';
+            
+            currentPuzzle.words.forEach(w => {
+                const item = document.createElement('div');
+                item.className = 'clue-list-item';
+                item.innerHTML = `<b>${w.number}.</b> ${w.clue}`;
+                item.onclick = () => {
+                    currentDirection = w.direction;
+                    const input = document.querySelector(`.cell-input[data-row="${w.start_row}"][data-col="${w.start_col}"]`);
+                    input.focus();
+                };
+                (w.direction === 'across' ? across : down).appendChild(item);
+            });
+        }
+
+        function checkAnswers() {
+            let win = true;
+            cellInputs.forEach(input => {
+                if (input.value === input.dataset.answer) {
+                    input.classList.add('correct');
+                } else if (input.value !== '') {
+                    input.classList.add('incorrect');
+                    win = false;
+                } else { win = false; }
+            });
+            if (win) document.getElementById('successOverlay').style.display = 'flex';
+        }
+
+        function clearPuzzle() {
+            if(confirm("Clear everything?")) {
+                cellInputs.forEach(i => {
+                    i.value = '';
+                    i.classList.remove('correct', 'incorrect');
+                });
+            }
+        }
+
+        function showSelector() {
+            location.reload();
+        }
+
+        init();
+    </script>
+</body>
+</html>
