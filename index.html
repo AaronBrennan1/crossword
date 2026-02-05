@@ -152,9 +152,20 @@
             height: var(--cell-size);
             background: white;
             position: relative;
+            transition: background-color 0.1s ease;
         }
 
         .cell.null { background: var(--primary-navy); }
+
+        /* HIGHLIGHT STYLES */
+        .cell.highlighted { background-color: var(--highlight-blue); }
+        
+        /* THE CURRENT CELL BEING INPUTTED */
+        .cell.active-cell { 
+            background-color: var(--active-gold) !important; 
+            outline: 2px solid var(--accent-gold);
+            z-index: 2;
+        }
 
         .cell-number {
             position: absolute;
@@ -178,10 +189,9 @@
             background: transparent;
             padding: 0;
             caret-color: transparent;
+            cursor: pointer;
         }
 
-        .cell.highlighted { background-color: var(--highlight-blue); }
-        .cell.active-cell { background-color: var(--active-gold); }
         .cell-input.correct { color: var(--success-green); }
         .cell-input.incorrect { background: #fff1f1; color: var(--error-red); }
 
@@ -286,7 +296,7 @@
     </div>
 
     <script>
-        let currentPuzzle = null;
+    let currentPuzzle = null;
     let currentDirection = 'across';
     let puzzlesData = [];
     let cellInputs = [];
@@ -303,7 +313,9 @@
                 btn.onclick = () => startPuzzle(p.puzzle_id);
                 grid.appendChild(btn);
             });
-        } catch (e) { console.error("Data load failed"); }
+        } catch (e) { 
+            console.error("Data load failed. Ensure chem_crosswords_fixed.json is in the same folder."); 
+        }
     }
 
     function startPuzzle(id) {
@@ -344,7 +356,7 @@
         cellInputs = Array.from(document.querySelectorAll('.cell-input'));
     }
 
-    // New: Handles clicking the cell container to toggle direction
+    // Handles clicking the cell container
     function handleCellClick(cellDiv) {
         const input = cellDiv.querySelector('input');
         if (document.activeElement === input) {
@@ -358,28 +370,45 @@
         const r = parseInt(input.dataset.row);
         const c = parseInt(input.dataset.col);
         
-        // 1. Try to find word in current direction
-        let word = findWordAt(r, c, currentDirection);
-        
-        // 2. SMART DIRECTION: If not found, try the other direction
-        if (!word) {
-            const otherDir = currentDirection === 'across' ? 'down' : 'across';
-            word = findWordAt(r, c, otherDir);
-            if (word) currentDirection = otherDir;
+        // 1. Logic to default to Across if both directions are available
+        const hasAcross = findWordAt(r, c, 'across');
+        const hasDown = findWordAt(r, c, 'down');
+
+        if (hasAcross && hasDown) {
+            // Default to 'across' if we just clicked/focused a multi-direction cell
+            // unless we are already in 'down' mode
+            if (currentDirection !== 'down') {
+                currentDirection = 'across';
+            }
+        } else if (hasAcross) {
+            currentDirection = 'across';
+        } else if (hasDown) {
+            currentDirection = 'down';
         }
 
-        // 3. If still no word (shouldn't happen on a white cell), exit
+        updateHighlights(r, c);
+    }
+
+    function updateHighlights(r, c) {
+        const word = findWordAt(r, c, currentDirection);
+        
+        // Safety check to prevent the "Cannot read properties of undefined" bug
         if (!word) return;
 
-        // UI Updates
+        // UI Updates: Remove old highlights
         document.querySelectorAll('.cell').forEach(el => el.classList.remove('highlighted', 'active-cell'));
-        input.parentElement.classList.add('active-cell');
+        
+        // Highlight the specific cell being inputted
+        const activeCellDiv = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+        if (activeCellDiv) activeCellDiv.classList.add('active-cell');
 
+        // Update Clue UI
         document.getElementById('clueLabel').innerText = `${word.number} ${word.direction.toUpperCase()}`;
         document.getElementById('clueText').innerText = word.clue;
 
-        const dr = currentDirection === 'down' ? 1 : 0;
-        const dc = currentDirection === 'across' ? 1 : 0;
+        // Highlight the entire word range
+        const dr = word.direction === 'down' ? 1 : 0;
+        const dc = word.direction === 'across' ? 1 : 0;
         
         for(let i=0; i < word.word.length; i++) {
             const targetR = word.start_row + i*dr;
@@ -390,19 +419,28 @@
     }
 
     function toggleDirection() {
-        currentDirection = currentDirection === 'across' ? 'down' : 'across';
         const active = document.activeElement;
-        if (active && active.classList.contains('cell-input')) {
-            handleFocus(active);
+        if (!active || !active.dataset.row) return;
+
+        const r = parseInt(active.dataset.row);
+        const c = parseInt(active.dataset.col);
+        
+        const newDir = currentDirection === 'across' ? 'down' : 'across';
+        
+        // Only toggle if the other direction actually exists for this cell
+        if (findWordAt(r, c, newDir)) {
+            currentDirection = newDir;
+            updateHighlights(r, c);
         }
     }
 
     function findWordAt(r, c, dir) {
+        if (!currentPuzzle || !currentPuzzle.words) return null;
         return currentPuzzle.words.find(w => {
             if (w.direction !== dir) return false;
             const dr = dir === 'down' ? 1 : 0;
             const dc = dir === 'across' ? 1 : 0;
-            for(let i=0; i<w.word.length; i++) {
+            for(let i=0; i < w.word.length; i++) {
                 if (w.start_row + i*dr === r && w.start_col + i*dc === c) return true;
             }
             return false;
@@ -423,7 +461,6 @@
             e.preventDefault();
             moveFocus(input, -1);
         } else if (e.key.startsWith('Arrow')) {
-            // Enhanced Navigation with Arrows
             e.preventDefault();
             const r = parseInt(input.dataset.row);
             const c = parseInt(input.dataset.col);
@@ -466,6 +503,7 @@
                 if(input) {
                     input.focus();
                     input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    updateHighlights(w.start_row, w.start_col);
                 }
             };
             (w.direction === 'across' ? across : down).appendChild(item);
@@ -513,4 +551,3 @@
     </script>
 </body>
 </html>
-
